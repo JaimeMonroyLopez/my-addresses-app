@@ -37,6 +37,32 @@ public class AddressesApiTests
     }
 
     [Fact]
+    public async Task SetDefault_LeavesOnlyTheNewDefault_ListedFirst()
+    {
+        var client = CreateClient();
+
+        // Address 1 is customer 1's default in the sample data.
+        await client.PutAsync("/api/addresses/2/default", null);
+        var addresses = await client.GetFromJsonAsync<List<AddressDto>>("/api/addresses");
+
+        Assert.Equal(2, addresses!.Single(a => a.IsDefault).Id);
+        Assert.Equal(2, addresses[0].Id);
+    }
+
+    [Fact]
+    public async Task SetDefault_LeavesOtherCustomersDefaultAlone()
+    {
+        var client = CreateClient();
+
+        await client.PutAsync("/api/addresses/2/default", null);
+        var request = new HttpRequestMessage(HttpMethod.Get, "/api/addresses");
+        request.Headers.Add("X-Customer-Id", "2");
+        var otherCustomersAddresses = await (await client.SendAsync(request)).Content.ReadFromJsonAsync<List<AddressDto>>();
+
+        Assert.True(otherCustomersAddresses!.Single(a => a.Id == 4).IsDefault);
+    }
+
+    [Fact]
     public async Task SetDefault_AnotherCustomersAddress_ReturnsNotFoundAndChangesNothing()
     {
         var client = CreateClient();

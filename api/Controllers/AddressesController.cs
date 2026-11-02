@@ -38,6 +38,15 @@ public class AddressesController(AppDbContext db) : ControllerBase
             return NotFound();
         }
 
+        // Only one default per customer: unmark the previous one in the same save.
+        var previousDefaults = await db.Addresses
+            .Where(a => a.CustomerId == customerId && a.IsDefault && a.Id != id)
+            .ToListAsync();
+        foreach (var previous in previousDefaults)
+        {
+            previous.IsDefault = false;
+        }
+
         address.IsDefault = true;
         await db.SaveChangesAsync();
         return NoContent();
