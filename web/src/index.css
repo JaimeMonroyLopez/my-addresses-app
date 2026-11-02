@@ -3,3 +3,4 @@ table { border-collapse: collapse; margin-top: 12px; width: 100%; max-width: 900
 th, td { border: 1px solid #d9d9d9; padding: 6px 10px; text-align: left; }
 th { background: #f7f7f7; }
 [role="status"] { color: #115b43; }
+[role="alert"] { color: #b42318; }
