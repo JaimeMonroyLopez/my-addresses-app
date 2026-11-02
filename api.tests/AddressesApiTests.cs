@@ -76,4 +76,45 @@ public class AddressesApiTests
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.False(otherCustomersAddresses!.Single(a => a.Id == 5).IsDefault);
     }
+
+    [Fact]
+    public async Task Delete_NonDefaultAddress_RemovesIt()
+    {
+        var client = CreateClient();
+
+        var response = await client.DeleteAsync("/api/addresses/3");
+        var addresses = await client.GetFromJsonAsync<List<AddressDto>>("/api/addresses");
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.DoesNotContain(addresses!, a => a.Id == 3);
+        Assert.Equal(2, addresses!.Count);
+    }
+
+    [Fact]
+    public async Task Delete_DefaultAddress_ReturnsConflictAndKeepsIt()
+    {
+        var client = CreateClient();
+
+        // Address 1 is customer 1's default in the sample data.
+        var response = await client.DeleteAsync("/api/addresses/1");
+        var addresses = await client.GetFromJsonAsync<List<AddressDto>>("/api/addresses");
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.True(addresses!.Single(a => a.Id == 1).IsDefault);
+    }
+
+    [Fact]
+    public async Task Delete_AnotherCustomersAddress_ReturnsNotFoundAndKeepsIt()
+    {
+        var client = CreateClient();
+
+        // Address 5 belongs to customer 2; the client is signed in as customer 1.
+        var response = await client.DeleteAsync("/api/addresses/5");
+        var request = new HttpRequestMessage(HttpMethod.Get, "/api/addresses");
+        request.Headers.Add("X-Customer-Id", "2");
+        var otherCustomersAddresses = await (await client.SendAsync(request)).Content.ReadFromJsonAsync<List<AddressDto>>();
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Contains(otherCustomersAddresses!, a => a.Id == 5);
+    }
 }

@@ -30,9 +30,7 @@ public class AddressesController(AppDbContext db) : ControllerBase
     [HttpPut("{id:int}/default")]
     public async Task<IActionResult> SetDefault(int id)
     {
-        // Another customer's address answers 404, the same as a missing one, so its existence is not revealed.
-        var customerId = User.GetCustomerId();
-        var address = await db.Addresses.SingleOrDefaultAsync(a => a.Id == id && a.CustomerId == customerId);
+        var address = await FindCustomersAddress(id);
         if (address is null)
         {
             return NotFound();
@@ -40,7 +38,7 @@ public class AddressesController(AppDbContext db) : ControllerBase
 
         // Only one default per customer: unmark the previous one in the same save.
         var previousDefaults = await db.Addresses
-            .Where(a => a.CustomerId == customerId && a.IsDefault && a.Id != id)
+            .Where(a => a.CustomerId == address.CustomerId && a.IsDefault && a.Id != id)
             .ToListAsync();
         foreach (var previous in previousDefaults)
         {
@@ -50,5 +48,33 @@ public class AddressesController(AppDbContext db) : ControllerBase
         address.IsDefault = true;
         await db.SaveChangesAsync();
         return NoContent();
+    }
+
+    // DELETE /api/addresses/{id} — deletes one of the customer's addresses, never the default one.
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var address = await FindCustomersAddress(id);
+        if (address is null)
+        {
+            return NotFound();
+        }
+
+        if (address.IsDefault)
+        {
+            return Conflict("The default address cannot be deleted.");
+        }
+
+        db.Addresses.Remove(address);
+        await db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    // Another customer's address comes back null, the same as a missing one, so callers answer 404
+    // and its existence is not revealed.
+    private Task<Address?> FindCustomersAddress(int id)
+    {
+        var customerId = User.GetCustomerId();
+        return db.Addresses.SingleOrDefaultAsync(a => a.Id == id && a.CustomerId == customerId);
     }
 }

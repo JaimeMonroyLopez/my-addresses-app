@@ -24,18 +24,27 @@ export default function AddressList() {
     loadAddresses().catch(() => setError("Could not load your addresses"));
   }, []);
 
-  async function makeDefault(id: number) {
+  // Sends a change to the API and shows an error, never a success, if any step fails.
+  async function changeAddress(url: string, method: string, success: string, failure: string) {
     setMessage("");
     setError("");
     try {
-      const res = await fetch(`/api/addresses/${id}/default`, { method: "PUT" });
-      if (!res.ok) throw new Error(`PUT /api/addresses/${id}/default failed with ${res.status}`);
+      const res = await fetch(url, { method });
+      if (!res.ok) throw new Error(`${method} ${url} failed with ${res.status}`);
       // Reload from the API so the list shows what was saved: one default, listed first.
       await loadAddresses();
-      setMessage("Default address updated");
+      setMessage(success);
     } catch {
-      setError("Could not update the default address");
+      setError(failure);
     }
+  }
+
+  function makeDefault(id: number) {
+    return changeAddress(`/api/addresses/${id}/default`, "PUT", "Default address updated", "Could not update the default address");
+  }
+
+  function deleteAddress(id: number) {
+    return changeAddress(`/api/addresses/${id}`, "DELETE", "Address deleted", "Could not delete the address");
   }
 
   return (
@@ -61,7 +70,15 @@ export default function AddressList() {
               <td>{a.street}</td>
               <td>{a.city}</td>
               <td>{a.isDefault ? "Default" : ""}</td>
-              <td>{!a.isDefault && <button onClick={() => makeDefault(a.id)}>Make default</button>}</td>
+              <td>
+                {/* The default address cannot be deleted, so it gets no buttons. */}
+                {!a.isDefault && (
+                  <>
+                    <button onClick={() => makeDefault(a.id)}>Make default</button>{" "}
+                    <button onClick={() => deleteAddress(a.id)}>Delete</button>
+                  </>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>
