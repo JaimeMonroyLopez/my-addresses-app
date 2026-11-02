@@ -30,7 +30,9 @@ public class AddressesController(AppDbContext db) : ControllerBase
     [HttpPut("{id:int}/default")]
     public async Task<IActionResult> SetDefault(int id)
     {
-        var address = await db.Addresses.FindAsync(id);
+        // Another customer's address answers 404, the same as a missing one, so its existence is not revealed.
+        var customerId = User.GetCustomerId();
+        var address = await db.Addresses.SingleOrDefaultAsync(a => a.Id == id && a.CustomerId == customerId);
         if (address is null)
         {
             return NotFound();

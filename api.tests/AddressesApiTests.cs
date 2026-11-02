@@ -35,4 +35,19 @@ public class AddressesApiTests
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.True(addresses!.Single(a => a.Id == 2).IsDefault);
     }
+
+    [Fact]
+    public async Task SetDefault_AnotherCustomersAddress_ReturnsNotFoundAndChangesNothing()
+    {
+        var client = CreateClient();
+
+        // Address 5 belongs to customer 2; the client is signed in as customer 1.
+        var response = await client.PutAsync("/api/addresses/5/default", null);
+        var request = new HttpRequestMessage(HttpMethod.Get, "/api/addresses");
+        request.Headers.Add("X-Customer-Id", "2");
+        var otherCustomersAddresses = await (await client.SendAsync(request)).Content.ReadFromJsonAsync<List<AddressDto>>();
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.False(otherCustomersAddresses!.Single(a => a.Id == 5).IsDefault);
+    }
 }
